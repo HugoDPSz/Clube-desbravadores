@@ -1,13 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 
-class DesbravadorBase(BaseModel):
+class DesbravadorCreate(BaseModel):
     nome: str
     idade: int
-    unidade: str
+    unidade_id: str
 
-class DesbravadorCreate(DesbravadorBase):
-    pass
-
-class Desbravador(DesbravadorBase):
-    id: str = Field(alias="_id")
+class DesbravadorComUnidade(DesbravadorCreate):
+    unidade_nome: Optional[str]
