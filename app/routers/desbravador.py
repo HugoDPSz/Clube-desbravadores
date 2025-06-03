@@ -1,42 +1,31 @@
-from fastapi import APIRouter, HTTPException
-from app.schemas.desbravador import DesbravadorCreate, DesbravadorComUnidade
-from app.database import db
-from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.schemas.desbravador import DesbravadorCreate, Desbravador
+from app.models.desbravador import Desbravador as DesbravadorModel
+from app.models.unidade import Unidade as UnidadeModel
+from app.database import SessionLocal
 
 router = APIRouter()
 
-@router.post("/desbravadores/", response_model=DesbravadorComUnidade)
-async def criar_desbravador(dados: DesbravadorCreate):
-    # Verifica se a unidade existe
-    if not ObjectId.is_valid(dados.unidade_id):
-        raise HTTPException(status_code=400, detail="ID da unidade inválido")
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-    unidade = await db.unidades.find_one({"_id": ObjectId(dados.unidade_id)})
+@router.post("/desbravadores/", response_model=Desbravador)
+def criar_desbravador(dados: DesbravadorCreate, db: Session = Depends(get_db)):
+    unidade = db.query(UnidadeModel).filter(UnidadeModel.id == dados.unidade_id).first()
     if not unidade:
-        raise HTTPException(status_code=404, detail="Unidade não encontrada")
+        raise HTTPException(status_code=404, detail="Unidade nao encontrada")
 
-    novo = dados.model_dump()
-    novo["unidade_id"] = ObjectId(novo["unidade_id"])  # salvar como ObjectId real
-    res = await db.desbravadores.insert_one(novo)
-    novo["_id"] = str(res.inserted_id)
-    novo["unidade_id"] = str(novo["unidade_id"])
+    novo = DesbravadorModel(**dados.model_dump())
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
     return novo
 
-@router.get("/desbravadores/", response_model=list[DesbravadorComUnidade])
-async def listar_desbravadores():
-    desbravadores = []
-    cursor = db.desbravadores.find({})
-    async for d in cursor:
-        unidade = await db.unidades.find_one({"_id": d["unidade_id"]})
-        if unidade:
-            d["unidade"] = {
-                "_id": str(unidade["_id"]),
-                "nome": unidade["nome"],
-                "diretor": unidade["diretor"]
-            }
-        else:
-            d["unidade"] = None
-        d["_id"] = str(d["_id"])
-        del d["unidade_id"]  # remove o campo bruto
-        desbravadores.append(d)
-    return desbravadores
+@router.get("/desbravadores/", response_model=list[Desbravador])
+def listar_desbravadores(db: Session = Depends(get_db)):
+    return db.query(DesbravadorModel).all()

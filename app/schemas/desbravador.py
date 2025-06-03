@@ -1,10 +1,19 @@
 from pydantic import BaseModel
-from typing import Optional
+from app.schemas.unidade import Unidade
 
-class DesbravadorCreate(BaseModel):
+class DesbravadorBase(BaseModel):
     nome: str
     idade: int
-    unidade_id: str
+    unidade_id: int
 
-class DesbravadorComUnidade(DesbravadorCreate):
-    unidade_nome: Optional[str]
+class DesbravadorCreate(DesbravadorBase):
+    pass
+
+class Desbravador(BaseModel):
+    id: int
+    nome: str
+    idade: int
+    unidade: Unidade  # Aqui entra o JOIN
+
+    class Config:
+        from_attributes = True

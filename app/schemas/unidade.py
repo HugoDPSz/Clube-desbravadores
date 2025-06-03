@@ -1,12 +1,14 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel
 
 class UnidadeBase(BaseModel):
     nome: str
     diretor: str
 
 class UnidadeCreate(UnidadeBase):
-    pass 
+    pass
 
 class Unidade(UnidadeBase):
-    id: str = Field(alias= "_id")
+    id: int
+
+    class Config:
+        from_attributes = True

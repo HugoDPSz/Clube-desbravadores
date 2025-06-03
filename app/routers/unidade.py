@@ -1,21 +1,26 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from app.schemas.unidade import UnidadeCreate, Unidade
-from app.database import db
+from app.models.unidade import Unidade as UnidadeModel
+from app.database import SessionLocal
 
 router = APIRouter()
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 @router.post("/unidades/", response_model=Unidade)
-async def criar_unidade(dados:UnidadeCreate):
-    nova = dados.model_dump()
-    res = await db.unidades.insert_one(nova)
-    nova["_id"] = str(res.inserted_id)
+def criar_unidade(dados: UnidadeCreate, db: Session = Depends(get_db)):
+    nova = UnidadeModel(**dados.model_dump())
+    db.add(nova)
+    db.commit()
+    db.refresh(nova)
     return nova
 
 @router.get("/unidades/", response_model=list[Unidade])
-async def listar_unidades():
-    unidades = []
-    cursor = db.unidades.find({})
-    async for u in cursor:
-        u["_id"] = str(u["_id"])
-        unidades.append(u)
-    return unidades
+def listar_unidades(db: Session = Depends(get_db)):
+    return db.query(UnidadeModel).all()
